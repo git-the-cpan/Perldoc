@@ -1,0 +1,19 @@
+name: Perldoc
+version: 0.00_02
+abstract: Perl 6 Documentation System
+author: Brian Ingerson <ingy@cpan.org>
+license: perl
+distribution_type: module
+build_requires:
+  Test::More: 0.54
+requires:
+  perl: 5.6.1
+  Data::Dumper: 0
+  Scalar::Util: 0
+  Tree::DAG_Node: 0
+  Spiffy: 0
+  YAML: 0
+no_index:
+  directory:
+    - inc
+generated_by: Module::Install version 0.36
