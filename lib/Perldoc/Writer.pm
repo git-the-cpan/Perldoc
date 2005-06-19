@@ -1,52 +1,50 @@
 package Perldoc::Writer;
+
+=head1 NAME
+
+Perldoc::Writer - base class for stream output functions
+
+=head1 SYNOPSIS
+
+ # using - generally use a subclass
+ my $writer = Perldoc::Writer::XML->new();
+
+ $doc->receiver($writer);
+ $doc->send_all();
+
+ my $output = $writer->output;  # an IO::All object
+
+ # or, you can pass an object or specify an IO::All source
+ $writer->output("filename");
+ $writer->output(\$scalar);
+
+=head1 DESCRIPTION
+
+A writer is something that takes Perldoc Serial API events, and
+converts them into a stream.
+
+=cut
+
 use Perldoc::Base -Base;
 
-field 'output';
-field 'result';
-field 'write_func';
+use Scalar::Util qw(blessed);
 
-sub init {
-    my $output = $self->output || do {my $x = ''; \$x};
-    my $write_func;
-    if (not ref $output) {
-        open my $handle, '>', $output
-          or die "Can't open $output for output:\n$!";
-        $self->output($handle);
-        $write_func = \&write_to_handle;
+sub output {
+    if ( @_ ) {
+	my $where = shift;
+	if ( blessed $where ) {
+	    $self->{output} = $where;
+	} elsif ( ref $where eq "SCALAR" ) {
+	    require IO::String;
+	    $self->{output} = IO::String->new($$where);
+	}
+    } else {
+	return $self->{output} ||= io("?");
     }
-    elsif (ref($output) eq 'SCALAR') {
-        $write_func = \&write_to_string;
-    }
-    else {
-        $write_func = \&write_to_handle;
-    }
-    $self->write_func($write_func);
-    $self->output($output);
-}
-
-sub cleanup {
-    my $output = $self->output
-      or return;
-    if (ref($output) eq 'SCALAR') {
-        $self->result($$output);
-    }
-    else {
-        $self->result(1);
-        close $output;
-    }
-    $self->output(undef);
 }
 
 sub write {
-    $self->write_func->(@_);
+    $self->output->write(@_);
 }
 
-sub write_to_string {
-    my $string = $self->output;
-    $$string .= $_ for @_;
-}
-
-sub write_to_handle {
-    my $handle = $self->output;
-    print $handle @_;
-}
+1;

@@ -20,15 +20,23 @@ tree as an attribute.  The property C<attr> is used for this.
 
 # is there a Spiffy field way to do this?
 sub attr {
-    if ( defined(my $attr = shift) ) {
-	if ( ref $attr eq "HASH" ) {
-	    $self->{attr} = $attr;
-	} else {
-	    if ( my $value = shift ) {
-		$self->{attr}{$attr} = $value;
+    if ( @_ ) {
+	if ( defined(my $attr = shift) ) {
+	    if ( ref $attr eq "HASH" ) {
+		$self->{attr} = $attr;
 	    } else {
-		return $self->{attr}{$attr};
+		if ( @_ ) {
+		    if ( defined( my $value = shift ) ) {
+			$self->{attr}{$attr} = $value;
+		    } else {
+			delete $self->{attr}{$attr};
+		    }
+		} else {
+		    return $self->{attr}{$attr};
+		}
 	    }
+	} else {
+	    delete $self->{attr};
 	}
     } else {
 	return $self->{attr};

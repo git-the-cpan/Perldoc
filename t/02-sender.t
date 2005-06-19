@@ -61,6 +61,7 @@ $sender->do_it("end_element", "title");
 $sender->do_it("start_element", "para");
 $sender->do_it("characters", "I like Bert, he's my friend.");
 $sender->do_it("end_document");
+$sender->do_it("end_document");
 
 is_deeply($receiver->events, Load(<<YAML), "utility class seems to work as advertised");
 - [ start_document ]
@@ -119,9 +120,12 @@ YAML
   - end_element
   - title
 -
+  - ignorable_whitespace
+  - source: "\n\n"
+-
   - start_element
   - para
-  - source: "\n\n"
+  - {}
 -
   - characters
   - foo

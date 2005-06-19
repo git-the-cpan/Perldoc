@@ -1,6 +1,6 @@
 package Perldoc::Base;
 use Spiffy 0.22 -Base;
-use Spiffy -XXX;
+#use Spiffy -XXX;
 use Carp qw(croak);
 our @EXPORT = qw(croak);
 

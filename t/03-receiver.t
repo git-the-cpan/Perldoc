@@ -33,7 +33,10 @@ SKIP:{
     $kwom->receiver($kwom2);
     eval { $kwom->send_all; };
     is($@, "", "dumped self without getting an exception");
-    $kwom->reset;
+    $kwom->restart;
+    $kwom->receiver(undef);
+    $kwom2->restart;
+    $kwom2->receiver(undef);
     is(Dump($kwom2), Dump($kwom), "Simple DOM tree can round trip")
 	or do {
     my $d1 = Dump($kwom);

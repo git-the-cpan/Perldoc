@@ -1,7 +1,7 @@
 package Perldoc::DOM::WS;
 
 use Carp;
-use base 'Perldoc::DOM::Node';
+use Perldoc::DOM::Node -Base;
 
 =head1 NAME
 
@@ -23,8 +23,25 @@ which is the whitespace to be represented in the normative XML.
 
 =cut
 
+sub _init {
+    my $o = shift;
+    $self->content($o->{content}) if exists $o->{content};
+    super($o);
+}
+
+sub new {
+    #print STDERR "WS: new with '$_[0]'\n";
+    if ( ref $_[0] ) {
+	super(@_);
+    } else {
+	my $text = shift;
+	my $o = shift || {};
+	$o->{content} = $text;
+	super($o);
+    }
+}
+
 sub content {
-    my $self = shift;
     if ( @_ ) {
 	# FIXME - unicode :)
 	my $content = shift;
@@ -43,3 +60,5 @@ sub dom_fields {
 sub event_type {
     "ignorable_whitespace"
 }
+
+1;

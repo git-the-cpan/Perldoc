@@ -1,0 +1,24 @@
+<perldoc>
+  <sect1>
+    <title>NAME</title>
+    <para>test - a test Perldoc&trade; document</para>
+  </sect1>
+  <sect1>
+    <title>SYNOPSIS</title>
+    <verbatim>
+use YourBrainForOnceDude;
+    </verbatim>
+  </sect1>
+  <sect1>
+    <title>Description</title>
+    <para>This document is a simple demo of
+      <strong>Perldoc&trade;</strong>.  The idea is to demonstrate a
+      variety of <emphasis>styles</emphasis>, and similar
+      things.</para>
+    <sect2>
+      <title>Sub-section</title>
+      <para>This document also contains sub-sections!  Also, this one
+        has a <link target="somewhere">link</link></para>
+    </sect2>
+  </sect1>
+</perldoc>

@@ -35,8 +35,12 @@ isa_ok($kwom, "Perldoc::DOM", "new DOM");
 
 $kwom->root($node);
 
-my $para = Perldoc::DOM::Element->new({ name => "para",
-					source => "\n\n" });
+my $gap = Perldoc::DOM::WS->new({ source => "\n\n" });
+
+$node->add_daughter($gap);
+
+my $para = Perldoc::DOM::Element->new({ name => "para" });
+
 $node->add_daughter($para);
 my ($foo, $pi);
 $para->add_daughter($foo = Perldoc::DOM::Text->new
@@ -50,7 +54,7 @@ $node->walk_down({ 'callback' => sub {
 		       push @nodes, $_[0];
 		   } });
 
-is_deeply(\@nodes, [$node, $title, $text, $para, $foo, $pi],
+is_deeply(\@nodes, [$node, $title, $text, $gap, $para, $foo, $pi],
 	  "walk_down");
 
 is_deeply($kwom, dclone($kwom), "Perldoc::DOM trees storable");

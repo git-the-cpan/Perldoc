@@ -44,6 +44,12 @@ sub parse {
             warn $id,"\n";
             my $class = $table->{$id} or next;
             next unless $class->can('start_patterns');
+
+	    # ingy, what are you trying to achieve with this?
+
+	    # I mean, I can see quite clearly what you're trying to
+	    # do.  But why create a new parser with every single
+	    # token?
             if ($self->match_start($buffer, $class)) {
                 $self->create_parser($class)->parse;
                 $matched++;

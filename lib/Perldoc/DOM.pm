@@ -7,6 +7,7 @@ use base 'Perldoc::Receiver';
 use Perldoc::DOM::Node;
 use Perldoc::DOM::Element;
 use Perldoc::DOM::PI;
+use Perldoc::DOM::WS;
 use Perldoc::DOM::Text;
 
 =head1 NAME
@@ -55,7 +56,22 @@ field 'dom_sendstate';
 
 use Scalar::Util qw(blessed);
 
+=head1 METHODS
+
+=over
+
+=item B<$dom-E<gt>receiver($object)>
+
+=item B<$dom-E<gt>send_one()>
+
+=item B<$dom-E<gt>send_all()>
+
+Perldoc::DOM supports the C<Perldoc::Sender> API.
+
+=cut
+
 sub send_one {
+    my $source = shift || $self;
     my $dss = $self->dom_sendstate;
     if ( !$dss ) {
 	$self->dom_sendstate
@@ -70,19 +86,19 @@ sub send_one {
 
     if ( !$dss->{state} ) {
 	$dss->{state} = "pre";
-	$self->send("start_document");
+	$source->send("start_document");
 	$dss->{head} = $self->root;
     } elsif ( $dss->{state} eq "pre" and $dss->{head} ) {
 
 	if ( $dss->{head}->isa("Perldoc::DOM::Element") ) {
-	    $self->send("start_element",
+	    $source->send("start_element",
 			$dss->{head}->name,
 			$dss->{head}->dom_attr);
 	    $dss->{state} = "pre";
 	    $dss->{head} = (($dss->{head}->daughters)[0]) ||
 		(($dss->{state} = "post"), $dss->{head});
 	} else {
-	    $self->send($dss->{head}->event_type,
+	    $source->send($dss->{head}->event_type,
 			$dss->{head}->dom_attr);
 	    $dss->{head} = $dss->{head}->right_sister ||
 		(($dss->{state} = "post"), $dss->{head}->mother);
@@ -90,13 +106,12 @@ sub send_one {
 
     } elsif ( $dss->{state} eq "post" ) {
 	if ( $dss->{head} && $dss->{head}->name ) {
-	    $self->send("end_element", $dss->{head}->name);
+	    $source->send("end_element", $dss->{head}->name);
 	    $dss->{state} = "pre";
 	    $dss->{head} = $dss->{head}->right_sister ||
 		(($dss->{state} = "post"), $dss->{head}->mother);
 	} else {
-	    $self->send("end_document");
-	    delete $self->{sendstack};
+	    $source->send("end_document");
 	    delete $self->{dom_sendstate};
 	    return 0;
 	}
@@ -106,12 +121,46 @@ sub send_one {
 
 field "dom_buildstate";
 
-sub reset {
-    delete $self->{sendstack};
-    delete $self->{sendstate};
+=item B<$dom-E<gt>restart()
+
+Clear the state of the C<Perldoc::Sender>, useful for guaranteeing
+that you don't get a partial tree out of your DOM object.
+
+=cut
+
+sub restart {
+    super;
     delete $self->{dom_sendstate};
-    delete $self->{receiver};
 }
+
+=item B<$dom-E<gt>start_document()>
+
+=item B<$dom-E<gt>end_document()>
+
+=item B<$dom-E<gt>start_element($name, \%o)>
+
+=item B<$dom-E<gt>end_element([$name])>
+
+=item B<$dom-E<gt>characters($data, [\%o])>
+
+=item B<$dom-E<gt>processing_instruction([\%o])>
+
+=item B<$dom-E<gt>ignorable_whitespace([\%o])>
+
+Supports the C<Perldoc::Receiver> API.
+
+=item B<$dom-E<gt>make_element($name, \%o)>
+
+=item B<$dom-E<gt>make_text($data, [\%o])>
+
+=item B<$dom-E<gt>make_pi(\%o)>
+
+=item B<$dom-E<gt>make_ws(\%o)>
+
+Sub-classes of C<Perldoc::DOM> may wish to override these methods,
+which are called when creating nodes during DOM tree construction.
+
+=cut
 
 sub start_document {
     $self->root(undef);
@@ -136,7 +185,9 @@ sub make_pi {
     return Perldoc::DOM::PI->new(@_);
 }
 sub make_ws {
-    return Perldoc::DOM::WS->new(@_);
+    my $whitespace = shift;
+    #print STDERR "Building whitespace node: `$whitespace'\n";
+    return Perldoc::DOM::WS->new($whitespace);
 }
 
 sub start_element {
@@ -172,5 +223,7 @@ sub processing_instruction {
 sub ignorable_whitespace {
     my $dbs = $self->dom_buildstate or die;
     my $node = $self->make_ws(@_);
-    $dbs->{head}->add_daughter($node) if $node;
+    $dbs->{head}->add_daughter($node) if $node and $dbs->{head};
 }
+
+1;

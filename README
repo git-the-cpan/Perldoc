@@ -1,30 +1,15 @@
-    = NAME
+README for Perldoc 0.10
+~~~~~~~~~~~~~~~~~~~~~~~
+This is a preliminary release of Perldoc.  Perldoc is a bit like SAX,
+but without the implied "XML".  As well as being like SAX, it
+specifies a DOM-like API to let you navigate built structures, too.
 
-    Perldoc - Perl Documentation Tools
+Having said that, XML parsing and writing classes are provided as a
+baseline.
 
-    = SYNOPSIS
+This project is available via subversion;
 
-        print Perldoc->new->doc_to_html(
-            input => 'somthing.kwid',
-        );
+  svn://utsl.gen.nz/trunk/Perldoc
 
-    = DESCRIPTION
-
-    `Perldoc` is a set of tools that define and work with the /Perldoc
-    Information Model/. The tools provide parsers for various /Perldoc
-    Dialects/ (including Pod and Kwid), and formatters for various output
-    formats.
-
-    = AUTHORS
-
-    * Brian Ingerson <ingy@cpan.org> * Sam Vilain <samv@cpan.org>
-
-    = COPYRIGHT
-
-    Copyright (c) 2005. Brian Ingerson. All rights reserved.
-
-    This program is free software; you can redistribute it and/or modify it
-    under the same terms as Perl itself.
-
-    See http://www.perl.com/perl/misc/Artistic.html
-
+Commit access will be handed out liberally to those interested in
+working on Perldoc; contact me (samv@cpan.org) for an account.
