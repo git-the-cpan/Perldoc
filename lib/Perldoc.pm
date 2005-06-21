@@ -7,7 +7,7 @@ use Perldoc::Reader;
 use Perldoc::DOM;
 use Perldoc::Parser;
 
-our $VERSION = '0.10';
+our $VERSION = '0.11';
 
 our @EXPORT_OK = qw(receiver_methods);
 BEGIN {

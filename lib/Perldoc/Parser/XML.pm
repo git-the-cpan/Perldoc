@@ -78,27 +78,31 @@ sub decode {
 
 sub send_one {
 
-    $self->reader->give_me("characters");
-    my $buffer = "";
-
-    # decided to "unroll" the regexes
+    # make this parser slightly more efficient by pulling tokens at a
+    # time :)
+    $self->reader->give_me(qr/<[^>]+>|[^<]+/s);
     my $state = "pu";
 
-    while ( defined(my $char = $self->reader->next) ) {
-	if ( $state eq "tag" ) {
-	    $buffer .= $char;
-	    last if $char eq ">";
+    my $buffer = $self->reader->next;
+
+    if ( defined $buffer ) {
+	if ( (substr $buffer, 0, 1) eq "<" ) {
+	    $state = "tag";
 	}
-	elsif ( $state eq "chars" ) {
-	    $self->reader->unget($char),last if $char eq "<";
-	    $buffer .= $char;
-	} else {
-	    $buffer = $char;
-	    if ( $char eq "<" ) {
-		$state = "tag";
-	    }
-	    else {
-		$state = "chars";
+	else {
+	    $state = "chars";
+	    if ( (substr $buffer, -1) eq "\n" ) {
+		my @lines;
+		while ( defined(my $next_token = $self->reader->next)
+		      ) {
+		    if ( substr($next_token,0,1) eq "<" ) {
+			$self->reader->unget($next_token);
+			last;
+		    } else {
+			push @lines, $next_token;
+		    }
+		}
+		$buffer = join "", $buffer, @lines if @lines;
 	    }
 	}
     }
@@ -127,7 +131,7 @@ sub send_one {
 	    die "Bizarre tag-like sequence: `$buffer'";
 	}
     }
-    else {
+    elsif ( $state eq "chars" ) {
 	#local($Perldoc::Sender::DEBUG)=1;
 	if ( $buffer =~ s{\A(\s+)}{}s ) {
 	    my $ws = $1;
@@ -145,6 +149,9 @@ sub send_one {
 	if ( length $trailing ) {
 	    $self->send("ignorable_whitespace", $trailing);
 	}
+    }
+    else {
+	warn "Got nothing; $buffer" unless $self->reader->eof;
     }
 
     return ($self->reader->eof ? $self->send("end_document") : 1);

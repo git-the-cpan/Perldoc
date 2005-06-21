@@ -11,7 +11,6 @@ inc/Module/Install/Metadata.pm
 inc/Module/Install/Win32.pm
 inc/Module/Install/WriteAll.pm
 lib/Perldoc.pm
-lib/Perldoc/Base.pm
 lib/Perldoc/DOM.pm
 lib/Perldoc/DOM/Element.pm
 lib/Perldoc/DOM/Node.pm
@@ -40,7 +39,7 @@ t/04-reader.t
 t/05-parser.t
 t/06-perldoc.t
 t/07-eventfilter.t
-t/data/test.xml
+t/data1
 t/examples/MyClass.pm
 t/scanner.yaml
 t/testdoc.pod

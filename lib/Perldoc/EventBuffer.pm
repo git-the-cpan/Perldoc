@@ -57,8 +57,10 @@ sub events {
 }
 
 sub send_one {
-    my $event = shift @{ $self->events };
+    my $ev = $self->events;
+    my $event = shift @$ev;
     $self->send(@$event);
+    return scalar(@$ev)
 }
 
 1;

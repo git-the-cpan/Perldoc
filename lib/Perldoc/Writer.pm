@@ -28,6 +28,7 @@ converts them into a stream.
 use Perldoc::Base -Base;
 
 use Scalar::Util qw(blessed);
+use IO::All;
 
 sub output {
     if ( @_ ) {
