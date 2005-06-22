@@ -18,6 +18,9 @@ Perldoc::Writer - base class for stream output functions
  $writer->output("filename");
  $writer->output(\$scalar);
 
+ # to get the document body
+ $writer->doc;
+
 =head1 DESCRIPTION
 
 A writer is something that takes Perldoc Serial API events, and
@@ -42,6 +45,11 @@ sub output {
     } else {
 	return $self->{output} ||= io("?");
     }
+}
+
+sub doc {
+    $self->{output}->seek(0,0);
+    return $self->{output}->slurp;
 }
 
 sub write {

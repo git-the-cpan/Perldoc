@@ -14,6 +14,7 @@ requires(qw(
     Set::Object 1.10
     Maptastic 1.00
     Tree::DAG_Node 0
+    IO::All 0.33
     Spiffy 0
     YAML 0
 ));
