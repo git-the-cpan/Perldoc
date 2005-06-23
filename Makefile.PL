@@ -21,8 +21,11 @@ requires(qw(
 
 build_requires(qw(
     Test::More 0.54
+    Test::Base 0.42
 ));
 
 check_nmake();
+
+clean_files("t/kwom.pm3");
 
 &WriteAll();

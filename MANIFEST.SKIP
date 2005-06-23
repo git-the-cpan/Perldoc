@@ -1,6 +1,7 @@
 \.svn
 ~$
-^#
-^blib$
-^Makefile$
-\.bak$
+#
+blib
+Makefile(.old)?$
+.bak
+kwom.pm3

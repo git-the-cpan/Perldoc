@@ -206,7 +206,7 @@ sub send {
     my $receiver = $self->receiver or croak "no receiver!";
     if ( $event eq "start_element" ) {
 	defined(my $name = $_[0])
-	    or croak "start_element event with no name";
+	    or confess "start_element event with no name";
 	push @{ $self->sendstack }, $name;
 	push @{ $self->sendpadstack }, undef;
     }

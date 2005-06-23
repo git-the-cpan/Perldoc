@@ -1,61 +1,126 @@
+
+package AnotherTestClass;
+
+use overload '""' => sub { 'Bill' }, fallback => 1;
+
 package TestChunks;
+
 use strict;
 use warnings;
-use base 'Exporter';
-our @EXPORT = qw(
-    plan is ok like is_deeply fail 
-    data_file chunks
-);
-use Test::More;
-use Carp;
 
-BEGIN {
-    $SIG{__DIE__} = sub {
-        Carp::confess(@_);
+use Test::Base -Base;
+
+our $direction;
+
+our @EXPORT = qw($direction);
+
+package TestChunks::Filter;
+use Test::Base::Filter -Base;
+    use YAML;
+
+sub yaml {
+    my $what = shift;
+    # perhaps not the best test
+    my $rv;
+    my $doing;
+    eval {
+	if ( ref $what ) {
+	    $doing = "Dump";
+	    $rv = YAML::Dump($what);
+	} else {
+	    $doing = "Load";
+	    # pamper input for YAML::Load
+	    $what .= "\n" unless substr($what, -1) eq "\n";
+	    $rv = YAML::Load($what);
+	}
     };
+    TestChunks::diag("Whoops! error $doing $what; $@"), die if $@;
+    return $rv;
 }
 
-sub chunks {
-    my $data = get_data();
-    my @chunks = ($data =~ /^(==\(.*?(?=^==\(|\z))/msg);
-    my @tests;
-    for my $chunk (@chunks) {
-        my $test = {};
-        $chunk =~ s/\A==\([ \t]*(.*)\s+// or die;
-        my $description = $1 || 'No test description';
-        my @parts = split /^==>\s+(\w+)\s+/m, $chunk;
-        shift @parts;
-        %$test = @parts;
-        for (keys %$test) {
-            $test->{$_} ||= '';
-        }
-        $test->{description} = $description;
-        return @tests = $test if defined $test->{ONLY};
-        next if defined $test->{SKIP};
-        push @tests, $test;
+sub yaml_data {
+    my $data = Load ((shift)."\n");
+    if ( $TestChunks::direction eq "document" ) {
+	return Dump $data;
+    } else {
+	return $data;
     }
-    return @tests;
 }
 
-my $data_file;
-sub data_file {
-    $data_file = shift;
+sub yaml_document {
+    my $document = shift;
+    if ( $TestChunks::direction eq "document" ) {
+	return $document;
+    } else {
+	return Load $document;
+    }
 }
 
-my $data;
-sub get_data {
-    return $data if $data;
-    no warnings;
-    local $/;
-    if ($data_file) {
-        open FILE, $data_file or die $!;
-        $data = <FILE>;
-        close FILE;
-    }
-    else {    
-        $data = do { package main; local $/; <DATA> };
-    }
-    return $data;
+sub trim {
+    return $_[0] if ref $_[0];
+    my $string = shift;
+    $string =~ s{\A\s+}{}s;
+    $string =~ s{\s+\Z}{}s;
+    $string;
 }
+
+sub chill {
+    require Perldoc::Data::Chill;
+    my $item = shift;
+
+    return $item if $TestChunks::direction eq "data";
+
+    my $chiller = Perldoc::Data::Chill->new(source => $item);
+
+    return $chiller;
+}
+
+use Scalar::Util qw(blessed);
+
+sub xml {
+    my $item = shift;
+
+    if ( blessed $item ) {
+	# going TO XML
+	return $item if $TestChunks::direction eq "data";
+	require Perldoc::Writer::XML;
+	my $doc;
+	my $writer = Perldoc::Writer::XML->new( output => \$doc );
+	$item->receiver($writer);
+
+	$item->send_all;
+	return $doc;
+
+    } else {
+	return $item if $TestChunks::direction eq "document";
+	# going FROM XML
+	require Perldoc::Reader;
+	require Perldoc::Parser::XML;
+
+	my $reader = Perldoc::Reader->new(input => $item);
+
+	return Perldoc::Parser::XML->new( reader => $reader );
+    }
+}
+
+sub thaw {
+    my $item = shift;
+    return $item if $TestChunks::direction eq "document";
+
+    if ( blessed $item and $item->isa("Perldoc::Sender") ) {
+	require Perldoc::Data::Thaw;
+	# hmmm ... no way of passing in options?
+	my $thawer = Perldoc::Data::Thaw->new( unsafe => 1 );
+
+	$item->receiver($thawer);
+	$item->send_all;
+
+	return $thawer;
+    }
+
+}
+
 
 1;
+
+

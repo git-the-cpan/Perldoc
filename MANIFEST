@@ -16,6 +16,7 @@ lib/Perldoc/Data.pod
 lib/Perldoc/Data/Chill.pm
 lib/Perldoc/Data/Thaw.pm
 lib/Perldoc/DOM.pm
+lib/Perldoc/DOM/AttrNode.pm
 lib/Perldoc/DOM/Element.pm
 lib/Perldoc/DOM/Node.pm
 lib/Perldoc/DOM/PI.pm
@@ -49,6 +50,7 @@ t/08-plink.t
 t/09-scottish.t
 t/10-data-thaw.t
 t/11-data-chill.t
+t/12-more-data-tests.t
 t/data/10-data-thaw.yaml
 t/data/test.xml
 t/data1

@@ -1,5 +1,6 @@
 package Perldoc::DOM::PI;
-use Perldoc::DOM::Node -Base;
+
+use Perldoc::DOM::AttrNode -Base;
 
 =head1 NAME
 
@@ -17,11 +18,10 @@ way in the source.
 
 =head2 SUB-CLASS PROPERTIES
 
-This node type keeps the C<source> property, and adds nothing else.
+A processing instruction is represented very much like an element,
+except that it cannot contain sub-nodes like an element can.
 
-More specialised processing instructions may sub-class this module or
-provide special behaviour when a property is set.  If we ever need
-them C<:)>
+Note: this restriction is currently not enforced by the DOM interface.
 
 =cut
 

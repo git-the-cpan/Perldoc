@@ -44,6 +44,8 @@ field "indent";
 
 field "explicit_containers";
 
+field "visited";
+
 sub Push {
     my $what = shift;
     $self->jlc(0);
@@ -56,11 +58,16 @@ sub Pop {
 sub Depth {
     return scalar @{$self->stack};
 }
+sub Unvisited {
+    return $self->visited->insert(shift);
+}
 
 use Scalar::Util qw(blessed reftype);
+use Set::Object;
 
 sub send_all {
     $self->stack([]);
+    $self->visited(set());
     $self->send("start_document");
     UNIVERSAL::perldoc_marshall($self->source, $self);
     $self->send("end_document");
@@ -70,6 +77,22 @@ sub UNIVERSAL::perldoc_marshall {
     my $obj = shift;
     my $self = shift;
     #($self, $obj) = ($obj, $self);
+
+    if ( ref $obj and !$self->Unvisited($obj) ) {
+
+	# this is a workaround; sometimes, for various reasons, the
+	# object will be coming in with magic mysteriously dispelled.
+	# So, re-bless it to fix the bits on the reference.
+	if ( blessed $obj ) {
+	    bless $obj, ref $obj;
+	}
+
+	$self->send("processing_instruction",
+		    "error",
+		    { message => ("loop in input data structure; saw "
+				  ."$obj twice") });
+	return;
+    }
 
     my ($old_indent, $entered_compact);
 
@@ -84,13 +107,9 @@ sub UNIVERSAL::perldoc_marshall {
 	     and $obj->perldoc_compact($self) ) {
 
 	    $old_indent = $self->compact;
+	    $entered_compact = !$old_indent;
 
 	    $self->compact(1);
-	    $self->send
-		(characters =>
-		 ($self->jlc ? " " : "\n".(" " x $self->Depth))
-		);
-	    $entered_compact = $old_indent;
 
 	}
 	if ( $obj->can("perldoc_attr") or
@@ -132,6 +151,9 @@ sub UNIVERSAL::perldoc_marshall {
 
 	    $self->send("start_element", $name, $att);
 	    $self->Push($name);
+	    $self->send ("processing_instruction" => "perldoc",
+			 { whitespace => "compact" })
+		if $entered_compact;
 	    UNIVERSAL::perldoc_marshall($children, $self);
 	    $self->Pop;
 	    $self->send("end_element", $name);
@@ -140,6 +162,9 @@ sub UNIVERSAL::perldoc_marshall {
 
 	    $self->send("start_element", $name, $att);
 	    $self->Push($name);
+	    $self->send ("processing_instruction" => "perldoc",
+			 { whitespace => "compact" })
+		if $entered_compact;
 
 	    for my $child ( sort {$a cmp $b} keys %$children ) {
 		if ( blessed $children->{$child} and
@@ -219,7 +244,8 @@ sub UNIVERSAL::perldoc_marshall {
     }
 
     if ( $entered_compact ) {
-	$self->send(characters => "\n".(" " x ($self->Depth-1)));
+	$self->send ("processing_instruction" => "perldoc",
+		     { whitespace => "normal" });
 	$self->compact($old_indent);
 	$self->jlc(1);
     }

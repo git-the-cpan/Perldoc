@@ -11,8 +11,12 @@ course, you can do this with Perldoc.
 
 To send a message, you point C<Perldoc::Data::Chill> at a data
 structure.  This structure currently should contain no circular
-references (unless appropriate marshalling methods are used); this
-limitation will be fixed by a later release.
+references; currently they are detected, and error processing
+instructions inserted into the event stream when they are found again.
+Fixing this properly requires the marshalling system to remember the
+entire data structure it has sent, which isn't good if you're dealing
+with very large data structures that might themselves be lazily
+streaming from a database or some such.
 
 The C<Perldoc::Data::Chill> class acts as a C<Perldoc::Sender>; so to
 actually write a document, you should connect it to a writer class,

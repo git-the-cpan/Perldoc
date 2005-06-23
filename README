@@ -1,4 +1,4 @@
-README for Perldoc 0.10
+README for Perldoc 0.13
 ~~~~~~~~~~~~~~~~~~~~~~~
 This is a preliminary release of Perldoc.  Perldoc is a bit like SAX,
 but without the implied "XML".  As well as being like SAX, it
