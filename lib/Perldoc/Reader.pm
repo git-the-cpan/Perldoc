@@ -1,148 +1,70 @@
 package Perldoc::Reader;
-
 use Perldoc::Base -Base;
-use IO::All;
+
+field 'string';
+field 'stringref';
+field 'filehandle';
+field 'filepath';
+
+sub all {
+    for my $source (qw(string stringref filepath filehandle)) {
+        if (defined $self->{$source}) {
+            my $method = "_all_$source";
+            return $self->$method();
+        }
+    }
+    die "No input to read";
+}
+
+sub _all_string {
+    return $self->string;
+}
+
+sub _all_stringref {
+    return ${$self->stringref};
+}
+
+sub _all_filepath {
+    my $filepath = $self->filepath;
+    open my $input, $filepath
+      or die "Can't open '$filepath' for input:\n$!";
+    local $/;
+    return <$input>
+}
+
+sub _all_filehandle {
+    my $filehandle = $self->filehandle;
+    local $/;
+    return <$filehandle>;
+}
 
 =head1 NAME
 
-Perldoc::Reader - abstaction for stream-ish data input
+Perldoc::Reader - Reader Class for Perldoc Parsers
 
 =head1 SYNOPSIS
 
- my $reader = Perldoc::Reader->new($where);
-
- # or "lines", "characters", or a regex
- $reader->give_me("paragraphs");
-
- while (!$reader->eof) {
-     my $data = $reader->next;
-
-     # do something with $data...
-
-     # if you didn't want a chunk, put it back.
-     if ($unwanted) {
-         $reader->unget($data);
-     }
- }
-
- # if you want to use it again.
- $reader->reset;
-
+    package Perldoc::Reader;
 
 =head1 DESCRIPTION
 
-A Perldoc reader is an abstraction around the job of pulling in data
-from a file.  It is here so that other input for information can
-choose to emulate an IO::All, or this class.
+Uniform reading interface.
+
+XXX - Should be a mixin for Parsers.
+
+=head1 AUTHOR
+
+Ingy döt Net <ingy@cpan.org>
+
+Audrey wrote the original code for this parser.
+
+=head1 COPYRIGHT
+
+Copyright (c) 2006. Ingy döt Net. All rights reserved.
+
+This program is free software; you can redistribute it and/or modify it
+under the same terms as Perl itself.
+
+See L<http://www.perl.com/perl/misc/Artistic.html>
 
 =cut
-
-use Carp;
-use Scalar::Util qw(blessed);
-
-sub new {
-    my $thingy = shift;
-    $self->SUPER::new(($thingy? (input => $thingy):()),
-		      give_me => "paragraphs");
-}
-
-sub input {
-    if ( @_ ) {
-	if ( ref $_[0] and ref $_[0] eq "GLOB" ) {
-	    $self->{input} = IO::All->new($_[0]);
-	} elsif ( ref $_[0] and blessed $_[0] ) {
-	    if ( $_[0]->can("getline") ) {
-		$self->{input} = $_[0];
-	    } else {
-		croak("input needs to be a URI, file body or "
-		      ."something that supports ->getline(),"
-		      ." why have you given me $_[0]?");
-	    }
-	} else {
-	    # a shocking test, really :).  Supply IO::All objects to
-	    # avoid.
-	    if ( $_[0] =~ m/\n/ ) {
-		$self->{input} = IO::All->new('?');
-		$self->{input}->seek(0, 0);
-		$self->{input}->write($_[0]);
-		$self->{input}->seek(0, 0);
-	    } else {
-		my $file = shift;
-		$self->guess_type($file);
-		$self->{input} = IO::All->new($file);
-	    }
-	}
-	$self->{_buffer}="";
-    } else {
-	return $self->{input};
-    }
-}
-
-field 'give_me';
-field 'type';
-
-field '_buffer';
-field '_eof';
-
-sub tip {
-    my $line = $self->input->getline;
-
-    if ( !defined($line) ) {
-	$self->_eof(1);
-    }
-    else {
-	$self->{_buffer} .= $line;
-    }
-}
-
-sub eof {
-    return ($self->_eof and !length($self->_buffer));
-}
-
-sub reset {
-    if ( $self->input->can("seek") ) {
-	eval { $self->input->seek(0,0); };
-	$self->_eof(0);
-    } else {
-	die "can't reset, because the input can't seek";
-    }
-}
-
-sub next {
-    my $want = $self->give_me;
-
-    my $full;
-    if ( $want eq "lines" ) {
-	$full = qr/\A.*\n/;
-    } elsif ( $want eq "paragraphs" ) {
-	$full = qr/\A(.*\n)+\s*\n(?=\s*\S)/;
-    } elsif ( $want eq "characters" ) {
-	$full = qr/\A./s;
-    } else {
-	$full = $want;
-    }
-
-    $self->tip until $self->{_buffer} =~ m/$full/g or $self->_eof;
-
-    # bad regexes cause madness, sad
-    pos($self->{_buffer}) ||= length($self->{_buffer});
-    my $chunk = substr $self->{_buffer}, 0, pos($self->{_buffer}), "";
-
-    length($chunk) ? $chunk : undef;
-}
-
-sub unget {
-    my $chunk = shift;
-    $self->{_buffer} = $chunk . $self->{_buffer};
-}
-
-# this is a temporary hack, pending something better :)
-sub guess_type {
-    my $filename = shift;
-
-    if ( $filename =~ m/\.(pod|kwid|xml)/ ) {
-	$self->type($1);
-    }
-}
-
-1;

@@ -1,25 +1,36 @@
 package Perldoc::Base;
-use Spiffy 0.22 -Base;
-#use Spiffy -XXX;
-use Carp qw(croak);
-our @EXPORT = qw(croak);
+use Spiffy 0.29 -Base;
 
-sub new() {
-    my $class = shift;
-    my %args = @_;
-    my $self = bless {}, $class;
-    for my $method (keys %args) {
-        $self->$method($args{$method})
-          if $self->can($method);
-    }
-    $self->init;
-    return $self;
-}
+# use Spiffy ':XXX';
+# 
+# our @EXPORT = qw'XXX';
 
-sub DESTROY {
-    $self->cleanup;
-}
+=head1 NAME
 
-sub init {}
+Perldoc::Base - Base Class for Perldoc Classes
 
-sub cleanup {}
+=head1 SYNOPSIS
+
+    package Perldoc::Foo;
+    use Perldoc::Base -Base;
+
+=head1 DESCRIPTION
+
+Perldoc is Spiffy.
+
+=head1 AUTHOR
+
+Ingy döt Net <ingy@cpan.org>
+
+Audrey wrote the original code for this parser.
+
+=head1 COPYRIGHT
+
+Copyright (c) 2006. Ingy döt Net. All rights reserved.
+
+This program is free software; you can redistribute it and/or modify it
+under the same terms as Perl itself.
+
+See L<http://www.perl.com/perl/misc/Artistic.html>
+
+=cut

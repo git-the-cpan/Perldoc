@@ -1,7 +1,0 @@
-\.svn
-~$
-#
-blib
-Makefile(.old)?$
-.bak
-kwom.pm3

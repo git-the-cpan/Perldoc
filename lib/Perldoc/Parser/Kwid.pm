@@ -1,281 +1,247 @@
 package Perldoc::Parser::Kwid;
-use Perldoc::Parser -Base;
+use Perldoc::Base -Base;
+use Perldoc::Reader;
 
-const top_class => 'Perldoc::Parser::Kwid::Top';
-const class_prefix => 'Perldoc::Parser::Kwid::';
+field 'receiver';
+field 'reader';
 
-sub classes {
-    qw(
-        AsisPhrase
-        BoldPhrase
-        CodePhrase
-        CommentBlock
-        DefinitionItem
-        DefinitionList
-        DocumentLink
-        HeadingBlock
-        HyperLink
-        ItalicPhrase
-        ListItem
-        NamedBlock
-        NamedPhrase
-        OrderedList
-        TextParagraph
-        UnorderedList
-        UrlLink
-        VerbatimBlock
-    );
+sub init {
+    my $reader = Perldoc::Reader->new(@_);
+    $self->reader($reader);
+    return $self;
 }
 
-################################################################################
-package Perldoc::Parser::Kwid::Top;
-use base 'Perldoc::Parser::Kwid';
-const id => 'top';
-const contains => [qw( comment named pre dlist ulist olist para )];
+my ($kwid, $head, $para, $bold, $italic, $tt, $brace_bold, $brace_italic, $brace_tt, $brace_any, $comment, $verbatim, $link, $url, $li, $directive_any);
 
-sub parse {
-    $self->receiver->begin('stream');
-    my $buffer = $self->reader->buffer;
-    my $table = $self->table;
-    my $contains = $self->contains;
-    while (not $self->the_end) {
-        my $matched = 0;
-        for my $id (@$contains) {
-            warn $id,"\n";
-            my $class = $table->{$id} or next;
-            next unless $class->can('start_patterns');
+my @has_inline = (
+    \$bold, \$italic, \$tt,
+    \$brace_bold, \$brace_italic, \$brace_tt, \$brace_any,
+    \$link, \$url, \$comment, \$li,
+);
 
-	    # ingy, what are you trying to achieve with this?
+$kwid = {
+    begins => qr/^/,
+    id     => 'body',
+    has    => [ \$head, \$verbatim, \$comment, \$para ],
+    ends   => qr/\Z/,
+};
 
-	    # I mean, I can see quite clearly what you're trying to
-	    # do.  But why create a new parser with every single
-	    # token?
-            if ($self->match_start($buffer, $class)) {
-                $self->create_parser($class)->parse;
-                $matched++;
-                last;
-            }
-        }
-        die "No Rule to match:\n" . $$buffer;
-    }
-    $self->receiver->end('stream');
-}
+$verbatim = {
+    begins => qr/^(?=[ \t])/m,
+    id     => 'pre',
+    ends   => qr/(?=\n[^ \t])/,
+};
 
-sub match_start {
-    my $buffer = shift;
-    my $class = shift;
-    warn $class, "\n";
-    my $patterns = $class->start_patterns;
-    for my $pattern (@$patterns) {
-        return 1 if $$buffer =~ $pattern;
-    }
-    return 0;
-}
+$comment = {
+    begins => qr/^#/m,
+    id     => 'comment',
+    ends   => qr/\n/,
+};
 
-sub the_end {
-    $self->reader->eos;
-}
+$li = {
+    begins => qr/^[-+*]+ /m,
+    id     => 'li',
+    has    => [ grep {$_ != \$li} @has_inline ],
+    ends   => qr/\n/, # (?=[-+*\n])/,
+};
 
-################################################################################
-package Perldoc::Parser::Kwid::TextParagraph;
-use base 'Perldoc::Parser::Kwid';
-const id => 'para';
-const start_patterns => [qr{^.}];
-const contains => [qw(bold italic text)];
+$head = {
+    begins => qr/^=+ /m,
+    id     => 'head',
+    event  => sub { "h" . (length($_[0]) - 1) },
+    has    => \@has_inline,
+    ends   => qr/\n/,
+};
 
-sub parse {
-    XXX $self;
-}
+$para = {
+    begins => qr//,
+    id     => 'p',
+    has    => \@has_inline,
+    ends   => qr/\n\n/,
+};
 
+$url = {
+    begins => qr{\b\w+://(?:[^,.)\s]|[,.](?!\s))+},
+    id     => 'a',
+    event  => sub { "a $_[0]" },
+    ends   => qr{},
+};
 
+$link = {
+    begins => qr/\[ (?: [^\]\|\n]+ \| )?/x,
+    id     => 'a',
+    event  => sub { $_[0] =~ /.([^\]\|\n]*)/; "a $1" },
+    has    => [ grep {$_ != \$link} @has_inline ],
+    ends   => qr/\]/,
+};
 
-################################################################################
-package Perldoc::Parser::Kwid::NamedBlock;
-use base 'Perldoc::Parser::Kwid';
-const id => 'named';
-const start_patterns => [qr{^\.\w+}];
+$brace_any = {
+    begins => qr{\{+\w+: },
+    id     => 'brace',
+    event  => sub { $_[0] =~ /(\w+)/; $1 },
+    has    => \@has_inline,
+    ends   => sub { $_[0] =~ /^(\{+)/; my $len = length($1); qr/\}{$len}/ },
+    nest   => 1,
+};
 
-sub parse {
-    # Load the sub parsing module
-    # Invoke a subparse
-}
+$directive_any = {
+    begins => qr{^\.\w+\n}m,
+    id     => 'directive',
+    event  => sub { substr($_[0], 1, -1) },
+    has    => \@has_inline,
+    ends   => sub { $_[0] =~ /(\w+)/; qr/^!$1/ },
+    nest   => 1,
+};
 
-################################################################################
-package Perldoc::Parser::Kwid::VerbatimBlock;
-use base 'Perldoc::Parser::Kwid';
-const id => 'pre';
+inline(\$brace_italic, \$italic => 'i', '/');
+inline(\$brace_bold, \$bold => 'b', '*');
+inline(\$brace_tt, \$tt => 'tt', '`');
 
-################################################################################
-package Perldoc::Parser::Kwid::DefinitionList;
-use base 'Perldoc::Parser::Kwid';
-const id => 'dlist';
+sub inline() {
+    my ($b, $p, $name, $sym) = @_;
+    my $punct = '()$@%&,.!;?';
 
-################################################################################
-package Perldoc::Parser::Kwid::UnorderedList;
-use base 'Perldoc::Parser::Kwid';
-const id => 'ulist';
-
-################################################################################
-package Perldoc::Parser::Kwid::OrderedList;
-use base 'Perldoc::Parser::Kwid';
-const id => 'olist';
-
-################################################################################
-package Perldoc::Parser::Kwid::BoldPhrase;
-use base 'Perldoc::Parser::Kwid';
-const id => 'bold';
-
-################################################################################
-package Perldoc::Parser::Kwid::ItalicPhrase;
-use base 'Perldoc::Parser::Kwid';
-
-################################################################################
-package Perldoc::Parser::Kwid::CodePhrase;
-use base 'Perldoc::Parser::Kwid';
-
-__END__
-
-################################################################################
-sub parse {
-    my $result = $self->do_parse;
-}
-
-sub do_parse {
-    $self->receiver->begin({type => 'stream'});
-    while (my $block = $self->next_block) {
-        $self->receiver->begin($block);
-        $self->reparse($block);
-        $self->receiver->end($block);
-    }
-    $self->receiver->end({type => 'stream'});
-    return $self->finish;
-}
-
-sub reparse {
-    my $chunk = shift;
-    my $type = $chunk->{type};
-    my $class = "Perldoc::Parser::$type";
-    my $parser = $class->new(
-        input => \$chunk->{content},
-        receiver => $self->receiver,
-    );
-    $parser->parse;
-}
-
-sub contains_blocks {
-    qw( heading verbatim paragraph )
-}
-
-sub next_block {
-    $self->throwaway
-      or return;
-    for my $type ($self->contains_blocks) {
-        my $method = "get_$type";
-        my $block = $self->$method;
-        next unless defined $block;
-        $block = { content => $block }
-          unless ref $block;
-        $block->{type} ||= $type;
-        return $block;
-    }
-    return;
-}
-
-sub throwaway {
-    while (my $line = $self->read) {
-        next if
-          $self->comment_line($line) or
-          $self->blank_line($line);
-        $self->unread($line);
-        return 1;
-    }
-    return;
-}
-
-sub read_paragraph {
-    my $paragraph = '';
-    while (my $line = $self->read) {
-        last if $self->blank_line($line);
-        $paragraph .= $line;
-    }
-    return $paragraph;
-}
-
-sub comment_line { (pop) =~ /^#\s/ }
-sub blank_line { (pop) =~ /^\s*$/ }
-sub line_matches {
-    my $regexp = shift;
-    my $line = $self->read;
-    $self->unread($line);
-    $line =~ $regexp;
-}
-
-# Methods to parse out top level blocks
-sub get_heading {
-    return unless $self->line_matches(qr/^={1,4} \S/);
-    my $heading = $self->read_paragraph;
-    $heading =~ s/\s*\n\s*(?=.)/ /g;
-    chomp $heading;
-    $heading =~ s/^(=+)\s+// or die;
-    my $level = length($1);
-    return +{
-        content => $heading,
-        level => $level,
+    $sym = quotemeta($sym);
+    $$p = {
+        begins => qr{(?<=(?:\a|\s))$sym(?=[$punct]*\b)},
+        id     => $name,
+        has    => [ grep {$_ != $p} @has_inline ],
+        ends   => sub { qr{(?<=[\w$punct])$sym(?=[$punct]*(?=\Z|\s))} },
+    };
+    $$b = {
+        begins => qr{\{+$sym},
+        id     => $name,
+        has    => [ grep {$_ != $b} @has_inline ],
+        ends   => sub { my $len = length($_[0]) - 1; qr/$sym\}{$len}/ },
     };
 }
 
-sub get_verbatim { 
-    my $verbatim = '';
-    my $prev_blank = 0;
-    while (my $line = $self->read) {
-        if ($line =~ /^\S/) {
-            if ($prev_blank) {
-                $self->unread($line);
-                last;
+use constant ID    => 0;
+use constant HAS   => 1;
+use constant ENDS  => 2;
+use constant EVENT => 3;
+
+sub parse {
+    my @stack;    # ([$id, $has, $ends, $event], ...)
+    my @has = (\$kwid);
+    my $str = $self->reader->all;
+
+    $str = '' unless defined($str);
+    pos($str) = 0;
+
+    PARSE: {
+        my $candidates = join('|',
+            map { "($_)" } (
+                (map { $_->[ENDS] } @stack),
+                (map { ($$_)->{begins} } @has)
+            )
+        );
+
+        my $pos = pos($str);
+        my $cur = $pos;
+
+      MATCH:
+        pos($str) = $cur;
+        $str =~ /\G(?:$candidates)/g or do {
+            if ($str =~ /\G(?:\\.)+/gs) {
+                $cur = pos($str);
             }
-            $self->unread($verbatim, $line);
-            return;
+            else {
+                ++$cur;
+            }
+            goto MATCH;
+        };
+
+        # Now let's find out which ones matched...
+        foreach my $idx (1 .. $#+) {
+            no strict 'refs';
+            defined $$idx or next;
+
+            $self->receiver->text(substr($str, $pos, $cur - $pos))
+              if $cur > $pos;
+
+            if ($idx <= @stack) {
+                # For each stack item from the end on, emit "id" events
+                $self->receiver->ends($_->[EVENT])
+                  for reverse splice(@stack, $idx - 1);
+
+                @stack or last PARSE;
+
+                # Pop onto the last frame
+                @has = @{ $stack[-1][HAS] };
+                redo PARSE;
+            }
+
+            # Now we are at "begins".
+            my $parser = ${ $has[ $idx - @stack - 1 ] };
+            my $id     = $parser->{id};
+            my $ends   = $parser->{ends};
+            my $event  = $parser->{event} || $id;
+
+            $ends = $ends->($$idx) if ref $ends eq 'CODE';
+            $event = $event->($$idx) if ref $event eq 'CODE';
+
+            # Grep for nestedness
+            my @this_has = ();
+
+          HAS:
+            foreach my $has (@{ $parser->{has} }) {
+                if (($$has)->{nest}) {
+                    push @this_has, $has;
+                }
+                else {
+                    foreach my $frame (@stack) {
+                        next HAS if $frame->[ID] eq ($$has)->{id};
+                    }
+                }
+                push @this_has, $has;
+            }
+
+            push @stack, [ $id, \@this_has, $ends, $event ];
+            @has = @this_has;
+
+            $self->receiver->begins($event);
+            redo PARSE;
         }
-        next if $self->comment_line($line);
-        $verbatim .= $line;
-        $prev_blank = $self->blank_line($line);
     }
-    return unless $verbatim;
-    until ($verbatim =~ /^\S/) {
-        $verbatim =~ s/^ //gm;
-    }
-    return $verbatim;
 }
 
-sub get_paragraph {
-    my $paragraph = $self->read 
-      or return;
-    while (my $line = $self->read) {
-        next if $self->comment_line($line);
-        last if $self->blank_line($line);
-        $paragraph .= $line;
-    }
-    $paragraph =~ s/\s*\n(?=.)/ /g;
-    return $paragraph;
-}
+=head1 NAME
 
-# Methods to handle reading and buffering input
-package Perldoc::Parser::Unit;
-our @ISA = qw(Perldoc::Parser);
+Perldoc::Parser::Kwid;
 
-sub do_parse {
-    $self->receiver->content(${$self->input});
-}
+=head1 SYNOPSIS
 
-sub reparse {
-    die;
-}
+    # Convert kwid to html:
+    use Perldoc::Parser::Kwid;
+    use Perldoc::Emitter::HTML;
 
-package Perldoc::Parser::heading;
-use base 'Perldoc::Parser::Unit';
+    my $html = '';
+    my $receiver = Perldoc::Emitter::HTML->new->init(stringref => $html);
+    my $kwid_text = 'This is Kwid markup';
+    my $parser = Perldoc::Parser::Kwid->new(receiver => $receiver)
+        ->init(string => $kwid_text);
+    $parser->parse;
+    print $html;
 
-package Perldoc::Parser::verbatim;
-use base 'Perldoc::Parser::Unit';
+=head1 DESCRIPTION
 
-package Perldoc::Parser::paragraph;
-use base 'Perldoc::Parser::Unit';
+Parse Kwid markup and fire events.
+
+=head1 AUTHOR
+
+Audrey Tang <autrijus@cpan.org>
+Ingy döt Net <ingy@cpan.org>
+
+Audrey wrote the original code for this parser.
+
+=head1 COPYRIGHT
+
+Copyright (c) 2006. Ingy döt Net. All rights reserved.
+
+This program is free software; you can redistribute it and/or modify it
+under the same terms as Perl itself.
+
+See L<http://www.perl.com/perl/misc/Artistic.html>
+
+=cut
